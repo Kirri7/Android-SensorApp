@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatActivity
 class MainActivity : AppCompatActivity(), SensorEventListener {
 
     private lateinit var sensorManager: SensorManager
+    private val sensorDelay = 80000000
 
     // Текстовые поля для каждого типа данных
     private lateinit var tvAccelerometer: TextView
@@ -61,11 +62,12 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         super.onResume()
 
         // Используем безопасную частоту обновления
-        val samplingRate = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        val defaultSamplingRate = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             SensorManager.SENSOR_DELAY_NORMAL  // Безопасная частота
         } else {
             SensorManager.SENSOR_DELAY_FASTEST  // Для старых версий Android
         }
+        val samplingRate = maxOf(defaultSamplingRate, sensorDelay)
 
         // Регистрируем датчики
         accelerometer?.let {
