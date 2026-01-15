@@ -12,113 +12,109 @@ import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity(), SensorEventListener {
 
-    // ──────────────────────
-    // Поля класса
-    // ──────────────────────
     private lateinit var sensorManager: SensorManager
-    private lateinit var tv: TextView
+
+    // Текстовые поля для каждого типа данных
+    private lateinit var tvAccelerometer: TextView
+    private lateinit var tvGyroscope: TextView
+    private lateinit var tvRotation: TextView
 
     private var accelerometer: Sensor? = null
     private var gyroscope: Sensor? = null
     private var rotationVector: Sensor? = null
 
-    // ──────────────────────
-    // Жизненный цикл
-    // ──────────────────────
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        tv = findViewById(R.id.sensorDataTextView)
+        // Инициализируем отдельные TextView для каждого датчика
+        tvAccelerometer = findViewById(R.id.tvAccelerometer)
+        tvGyroscope = findViewById(R.id.tvGyroscope)
+        tvRotation = findViewById(R.id.tvRotation)
 
-        // Получаем сервис сенсоров
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
 
-        // ----------------------------
-        // 1️⃣ Ищем нужные датчики
-        // ----------------------------
+        // Получаем датчики
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
         rotationVector = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
 
-        // ----------------------------
-        // 2️⃣ Если хотя бы один датчик не найден – выводим ошибку
-        // ----------------------------
+        // Проверяем доступность датчиков
         val missingSensors = mutableListOf<String>()
-        if (accelerometer == null) missingSensors += "Акселерометр"
-        if (gyroscope == null) missingSensors += "Гироскоп"
-        if (rotationVector == null) missingSensors += "Rotation‑vector"
+        if (accelerometer == null) missingSensors.add("Акселерометр")
+        if (gyroscope == null) missingSensors.add("Гироскоп")
+        if (rotationVector == null) missingSensors.add("Rotation-vector")
 
         if (missingSensors.isNotEmpty()) {
-            // Выводим в UI и показываем Toast
-            val msg = "Датчики НЕ найдены: ${missingSensors.joinToString(", ")}"
-            tv.text = msg
+            val msg = "Датчики не найдены: ${missingSensors.joinToString(", ")}"
+            tvAccelerometer.text = msg
             Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
         } else {
-            // Если всё ОК – сразу обновим UI, чтобы пользователь видел, что приложение работает
-            tv.text = "Сенсоры найдены. Ожидаем данные..."
+            // Устанавливаем начальные значения
+            tvAccelerometer.text = "Акселерометр:\nОжидание данных..."
+            tvGyroscope.text = "Гироскоп:\nОжидание данных..."
+            tvRotation.text = "Rotation-vector:\nОжидание данных..."
         }
     }
 
-    // ──────────────────────
-    // Регистрация / отписка от датчиков
-    // ──────────────────────
     override fun onResume() {
         super.onResume()
-        // Регистрируем только те датчики, которые действительно есть
+
+        // Используем безопасную частоту обновления
+        val samplingRate = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            SensorManager.SENSOR_DELAY_NORMAL  // Безопасная частота
+        } else {
+            SensorManager.SENSOR_DELAY_FASTEST  // Для старых версий Android
+        }
+
+        // Регистрируем датчики
         accelerometer?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+            sensorManager.registerListener(this, it, samplingRate)
         }
         gyroscope?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+            sensorManager.registerListener(this, it, samplingRate)
         }
         rotationVector?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+            sensorManager.registerListener(this, it, samplingRate)
         }
     }
 
     override fun onPause() {
         super.onPause()
-        // Отключаем всё, чтобы экономить батарею
         sensorManager.unregisterListener(this)
     }
 
-    // ──────────────────────
-    // Обработка поступивших данных
-    // ──────────────────────
     override fun onSensorChanged(event: SensorEvent) {
+        // Обновляем соответствующий TextView в зависимости от типа датчика
         when (event.sensor.type) {
             Sensor.TYPE_ACCELEROMETER -> {
                 val x = event.values[0]
                 val y = event.values[1]
                 val z = event.values[2]
-                tv.append("\n\nAccelerometer:\nX = %.3f\nY = %.3f\nZ = %.3f".format(x, y, z))
+                tvAccelerometer.text = "Акселерометр:\nX = %.3f m/s²\nY = %.3f m/s²\nZ = %.3f m/s²".format(x, y, z)
             }
 
             Sensor.TYPE_GYROSCOPE -> {
                 val x = event.values[0]
                 val y = event.values[1]
                 val z = event.values[2]
-                tv.append("\n\nGyroscope:\nX = %.3f\nY = %.3f\nZ = %.3f".format(x, y, z))
+                tvGyroscope.text = "Гироскоп:\nX = %.3f rad/s\nY = %.3f rad/s\nZ = %.3f rad/s".format(x, y, z)
             }
 
             Sensor.TYPE_ROTATION_VECTOR -> {
-                // rotation‑vector обычно возвращает 3–4 значения (x, y, z, [w])
                 val x = event.values[0]
                 val y = event.values[1]
                 val z = event.values[2]
-                tv.append("\n\nRotation‑vector:\nX = %.3f\nY = %.3f\nZ = %.3f".format(x, y, z))
-            }
-        }
+                // Для rotation vector добавляем четвертое значение если есть
+                val hasFourthValue = event.values.size >= 4
+                val fourthValue = if (hasFourthValue) "W = %.3f".format(event.values[3]) else "W = N/A"
 
-        // Прокручиваем ScrollView к концу, чтобы пользователь видел последние данные
-        tv.post {
-            val scroll = findViewById<android.widget.ScrollView>(R.id.scrollRoot)
-            scroll.fullScroll(android.view.View.FOCUS_DOWN)
+                tvRotation.text = "Rotation-vector:\nX = %.3f\nY = %.3f\nZ = %.3f\n%s".format(x, y, z, fourthValue)
+            }
         }
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
-        // Здесь можно реагировать на изменения точности, но для простого примера это не нужно.
+        // Можно добавить обработку изменения точности при необходимости
     }
 }

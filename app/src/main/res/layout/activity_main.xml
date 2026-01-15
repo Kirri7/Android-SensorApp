@@ -1,17 +1,62 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--activity_main.xml-->
-<!-- Самый простой, но удобный UI -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/scrollRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp">
+    android:padding="16dp"
+    android:background="#f5f5f5">
 
-    <TextView
-        android:id="@+id/sensorDataTextView"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Данные с датчиков будут появляться здесь..."
-        android:textSize="18sp"
-        android:textColor="@color/black" />
+        android:orientation="vertical"
+        android:padding="8dp">
+
+        <!-- Заголовок -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:gravity="center"
+            android:text="Данные датчиков"
+            android:textColor="#333333"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <!-- Данные акселерометра -->
+        <TextView
+            android:id="@+id/tvAccelerometer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/sensor_background"
+            android:padding="16dp"
+            android:text="Акселерометр:\nОжидание данных..."
+            android:textSize="16sp"
+            android:textColor="#333333" />
+
+        <!-- Данные гироскопа -->
+        <TextView
+            android:id="@+id/tvGyroscope"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/sensor_background"
+            android:padding="16dp"
+            android:text="Гироскоп:\nОжидание данных..."
+            android:textSize="16sp"
+            android:textColor="#333333" />
+
+        <!-- Данные rotation-vector -->
+        <TextView
+            android:id="@+id/tvRotation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/sensor_background"
+            android:padding="16dp"
+            android:text="Rotation-vector:\nОжидание данных..."
+            android:textSize="16sp"
+            android:textColor="#333333" />
+
+    </LinearLayout>
 </ScrollView>
