@@ -9,6 +9,10 @@ import android.os.Bundle
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.*
 
 class MainActivity : AppCompatActivity(), SensorEventListener {
 
@@ -23,6 +27,11 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private var accelerometer: Sensor? = null
     private var gyroscope: Sensor? = null
     private var rotationVector: Sensor? = null
+
+    private lateinit var outputFile: File
+    private var lastWriteTime = 0L
+    private val writeInterval = 50L // 20 раз в секунду = 50ms интервал
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,6 +64,14 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             tvAccelerometer.text = "Акселерометр:\nОжидание данных..."
             tvGyroscope.text = "Гироскоп:\nОжидание данных..."
             tvRotation.text = "Rotation-vector:\nОжидание данных..."
+        }
+
+        // Создаем файл для записи данных
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        outputFile = File(getExternalFilesDir(null), "sensor_data.txt")
+        // Очищаем файл при старте
+        if (outputFile.exists()) {
+            outputFile.delete()
         }
     }
 
@@ -94,6 +111,14 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                 val y = event.values[1]
                 val z = event.values[2]
                 tvAccelerometer.text = "Акселерометр:\nX = %.3f m/s²\nY = %.3f m/s²\nZ = %.3f m/s²".format(x, y, z)
+
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastWriteTime > writeInterval) {
+                    val timestamp = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(Date())
+                    val dataLine = "$timestamp,ACC,$x,$y,$z\n"
+                    writeToFile(dataLine)
+                    lastWriteTime = currentTime
+                }
             }
 
             Sensor.TYPE_GYROSCOPE -> {
@@ -113,6 +138,16 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
                 tvRotation.text = "Rotation-vector:\nX = %.3f\nY = %.3f\nZ = %.3f\n%s".format(x, y, z, fourthValue)
             }
+        }
+    }
+
+    private fun writeToFile(data: String) {
+        try {
+            FileOutputStream(outputFile, true).use { fos ->
+                fos.write(data.toByteArray())
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
