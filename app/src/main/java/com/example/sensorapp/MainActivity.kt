@@ -129,14 +129,29 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             }
 
             Sensor.TYPE_ROTATION_VECTOR -> {
-                val x = event.values[0]
-                val y = event.values[1]
-                val z = event.values[2]
-                // Для rotation vector добавляем четвертое значение если есть
-                val hasFourthValue = event.values.size >= 4
-                val fourthValue = if (hasFourthValue) "W = %.3f".format(event.values[3]) else "W = N/A"
+                val rotationMatrix = FloatArray(9)
+                val orientationAngles = FloatArray(3) // Здесь будут [Yaw, Pitch, Roll]
 
-                tvRotation.text = "Rotation-vector:\nX = %.3f\nY = %.3f\nZ = %.3f\n%s".format(x, y, z, fourthValue)
+                // Преобразуем кватернион (rotation vector) в матрицу поворота
+                SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
+
+                // Преобразуем матрицу поворота в углы Эйлера
+                SensorManager.getOrientation(rotationMatrix, orientationAngles)
+
+                // orientationAngles теперь содержит:
+                val azimuth =
+                    orientationAngles[0] // Рыскание (Yaw) - поворот вокруг Z (радианы, от -π до π)
+                val pitch =
+                    orientationAngles[1] // Тангаж (Pitch) - наклон вперед/назад (радианы, от -π/2 до π/2)
+                val roll =
+                    orientationAngles[2] // Крен (Roll) - наклон влево/вправо (радианы, от -π до π)
+
+                // Конвертируем радианы в градусы для удобства
+                val x = Math.toDegrees(azimuth.toDouble()).toFloat()
+                val y = Math.toDegrees(pitch.toDouble()).toFloat()
+                val z = Math.toDegrees(roll.toDouble()).toFloat()
+
+                tvRotation.text = "Rotation-vector:\nX = %.3f\nY = %.3f\nZ = %.3f\n".format(x, y, z)
             }
         }
     }
