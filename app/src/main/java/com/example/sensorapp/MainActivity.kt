@@ -32,6 +32,10 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private var lastWriteTime = 0L
     private val writeInterval = 50L // 20 раз в секунду = 50ms интервал
 
+    private val dataBuffer = StringBuilder()
+    private var lastFlushTime = 0L
+    private val flushInterval = 100L // сбрасываем буфер каждые 100мс
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -111,7 +115,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                 val y = event.values[1]
                 val z = event.values[2]
                 tvAccelerometer.text = "Акселерометр:\nX = %.3f m/s²\nY = %.3f m/s²\nZ = %.3f m/s²".format(x, y, z)
-
+                /*
                 val currentTime = System.currentTimeMillis()
                 if (currentTime - lastWriteTime > writeInterval) {
                     val timestamp = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(Date())
@@ -119,6 +123,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                     writeToFile(dataLine)
                     lastWriteTime = currentTime
                 }
+                */
             }
 
             Sensor.TYPE_GYROSCOPE -> {
@@ -152,17 +157,28 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                 val z = Math.toDegrees(roll.toDouble()).toFloat()
 
                 tvRotation.text = "Rotation-vector:\nX = %.3f\nY = %.3f\nZ = %.3f\n".format(x, y, z)
+
+                val dataLine = "%f %f %f %f".format(x, y, z, 10.0)
+                writeToFile(dataLine)
             }
         }
     }
 
     private fun writeToFile(data: String) {
-        try {
-            FileOutputStream(outputFile, true).use { fos ->
-                fos.write(data.toByteArray())
+        dataBuffer.append(data).append("\n")
+        val currentTime = System.currentTimeMillis()
+
+        // adb shell tail -f /sdcard/Android/data/com.example.sensorapp/files/sensor_data.txt
+        if (currentTime - lastFlushTime > flushInterval) {
+            try {
+                FileOutputStream(outputFile, true).use { fos -> // true = APPEND mode
+                    fos.write(dataBuffer.toString().toByteArray())
+                    dataBuffer.clear()
+                }
+                lastFlushTime = currentTime
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
     }
 
