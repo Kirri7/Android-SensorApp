@@ -25,10 +25,12 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private lateinit var tvAccelerometer: TextView
     private lateinit var tvGyroscope: TextView
     private lateinit var tvRotation: TextView
+    private lateinit var tvLinearAcceleration: TextView
 
     private var accelerometer: Sensor? = null
     private var gyroscope: Sensor? = null
     private var rotationVector: Sensor? = null
+    private var linearAccelerometer: Sensor? = null
 
     private lateinit var outputFile: File
     private var lastWriteTime = 0L
@@ -73,6 +75,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         tvAccelerometer = findViewById(R.id.tvAccelerometer)
         tvGyroscope = findViewById(R.id.tvGyroscope)
         tvRotation = findViewById(R.id.tvRotation)
+        tvLinearAcceleration = findViewById(R.id.tvLinearAcceleration)
 
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
 
@@ -80,12 +83,14 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
         rotationVector = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+        linearAccelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
 
         // Проверяем доступность датчиков
         val missingSensors = mutableListOf<String>()
         if (accelerometer == null) missingSensors.add("Акселерометр")
         if (gyroscope == null) missingSensors.add("Гироскоп")
         if (rotationVector == null) missingSensors.add("Rotation-vector")
+        if (linearAccelerometer == null) missingSensors.add("Линейный акселерометр")
 
         if (missingSensors.isNotEmpty()) {
             val msg = "Датчики не найдены: ${missingSensors.joinToString(", ")}"
@@ -96,6 +101,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             tvAccelerometer.text = "Акселерометр:\nОжидание данных..."
             tvGyroscope.text = "Гироскоп:\nОжидание данных..."
             tvRotation.text = "Rotation-vector:\nОжидание данных..."
+            tvLinearAcceleration.text = "Линейный акселерометр:\nОжидание данных..."
         }
 
         // Создаем файл для записи данных
@@ -126,6 +132,9 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             sensorManager.registerListener(this, it, samplingRate)
         }
         rotationVector?.let {
+            sensorManager.registerListener(this, it, samplingRate)
+        }
+        linearAccelerometer?.let {
             sensorManager.registerListener(this, it, samplingRate)
         }
     }
@@ -188,6 +197,13 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
                 val dataLine = "%f %f %f %f".format(x, y, z, 10.0)
                 writeToFile(dataLine)
+            }
+
+            Sensor.TYPE_LINEAR_ACCELERATION -> {
+                val x = event.values[0]
+                val y = event.values[1]
+                val z = event.values[2]
+                tvLinearAcceleration.text = "Линейный акселерометр:\nX = %.3f m/s²\nY = %.3f m/s²\nZ = %.3f m/s²".format(x, y, z)
             }
         }
     }

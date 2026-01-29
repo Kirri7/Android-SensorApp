@@ -35,6 +35,19 @@
             android:textSize="16sp"
             android:textColor="#333333" />
 
+        <!-- Данные линейного акселерометра -->
+        <TextView
+            android:id="@+id/tvLinearAcceleration"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/sensor_background"
+            android:padding="16dp"
+            android:text="Линейный акселерометр:\nОжидание данных..."
+            android:textSize="16sp"
+            android:textColor="#333333" />
+
+
         <!-- Данные гироскопа -->
         <TextView
             android:id="@+id/tvGyroscope"
