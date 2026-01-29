@@ -6,6 +6,8 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.view.KeyEvent
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -36,10 +38,36 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private var lastFlushTime = 0L
     private val flushInterval = 100L // сбрасываем буфер каждые 100мс
 
+    private var counter = 0
+    private lateinit var tvCounter: TextView
+    private val handler = Handler()
+    private var volumeUpPressed = false
+    private var volumeDownPressed = false
+
+    private val volumeRunnable = object : Runnable {
+        override fun run() {
+            when {
+                volumeUpPressed && counter < 100 -> {
+                    counter++
+                    updateCounterDisplay()
+                    handler.postDelayed(this, 150)
+                }
+                volumeDownPressed && counter > -100 -> {
+                    counter--
+                    updateCounterDisplay()
+                    handler.postDelayed(this, 150)
+                }
+            }
+        }
+    }
+
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        tvCounter = findViewById(R.id.tvCounter)
+        updateCounterDisplay()
 
         // Инициализируем отдельные TextView для каждого датчика
         tvAccelerometer = findViewById(R.id.tvAccelerometer)
@@ -164,6 +192,42 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         }
     }
 
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        when (event.keyCode) {
+            KeyEvent.KEYCODE_VOLUME_UP -> {
+                when (event.action) {
+                    KeyEvent.ACTION_DOWN -> {
+                        if (!volumeUpPressed) {
+                            volumeUpPressed = true
+                            handler.post(volumeRunnable)
+                        }
+                    }
+                    KeyEvent.ACTION_UP -> {
+                        volumeUpPressed = false
+                        handler.removeCallbacks(volumeRunnable)
+                    }
+                }
+                return true // Блокируем стандартное поведение
+            }
+            KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                when (event.action) {
+                    KeyEvent.ACTION_DOWN -> {
+                        if (!volumeDownPressed) {
+                            volumeDownPressed = true
+                            handler.post(volumeRunnable)
+                        }
+                    }
+                    KeyEvent.ACTION_UP -> {
+                        volumeDownPressed = false
+                        handler.removeCallbacks(volumeRunnable)
+                    }
+                }
+                return true // Блокируем стандартное поведение
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
     private fun writeToFile(data: String) {
         dataBuffer.append(data).append("\n")
         val currentTime = System.currentTimeMillis()
@@ -184,5 +248,9 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
         // Можно добавить обработку изменения точности при необходимости
+    }
+
+    private fun updateCounterDisplay() {
+        tvCounter.text = "Счётчик: $counter"
     }
 }
