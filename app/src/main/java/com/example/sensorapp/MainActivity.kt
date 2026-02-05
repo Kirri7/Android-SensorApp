@@ -11,10 +11,12 @@ import android.view.KeyEvent
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.remote.creation.compose.state.sqrt
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.abs
 
 class MainActivity : AppCompatActivity(), SensorEventListener {
 
@@ -46,6 +48,21 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private var volumeUpPressed = false
     private var volumeDownPressed = false
 
+    private lateinit var tvPositionDelta: TextView
+    private var deltaX = 0.0
+    private var deltaY = 0.0
+    private var deltaZ = 0.0
+    private var velocityX = 0.0
+    private var velocityY = 0.0
+    private var velocityZ = 0.0
+    private var lastLinearAccelTime = 0L
+    private val accelerationThreshold = 0.1 // м/с² - ускорения меньше этого игнорируем
+    private val velocityThreshold = 0.05 // м/с - скорости меньше этого сбрасываем в ноль
+    private val stillnessThreshold = 0.3f // м/с² - если ускорение меньше этого, считаем что телефон неподвижен
+    private val stillnessTimeThreshold = 500L // мс - сколько времени должно пройти в неподвижности
+    private var stillnessStartTime = 0L
+    private var isStill = false
+
     private val volumeRunnable = object : Runnable {
         override fun run() {
             when {
@@ -76,6 +93,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         tvGyroscope = findViewById(R.id.tvGyroscope)
         tvRotation = findViewById(R.id.tvRotation)
         tvLinearAcceleration = findViewById(R.id.tvLinearAcceleration)
+        tvPositionDelta = findViewById(R.id.tvPositionDelta)
 
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
 
@@ -203,7 +221,53 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                 val x = event.values[0]
                 val y = event.values[1]
                 val z = event.values[2]
-                tvLinearAcceleration.text = "Линейный акселерометр:\nX = %.3f m/s²\nY = %.3f m/s²\nZ = %.3f m/s²".format(x, y, z)
+
+                // Определяем общее ускорение (норма вектора)
+                val totalAcceleration = sqrt(x * x + y * y + z * z)
+
+                // Детектор неподвижности
+                val currentTime = System.currentTimeMillis()
+
+                if (totalAcceleration < stillnessThreshold) {
+                    if (stillnessStartTime == 0L) {
+                        stillnessStartTime = currentTime
+                    } else if (currentTime - stillnessStartTime > stillnessTimeThreshold) {
+                        if (!isStill) {
+                            velocityX = 0.0
+                            velocityY = 0.0
+                            velocityZ = 0.0
+                            isStill = true
+                        }
+                    }
+                } else {
+                    stillnessStartTime = 0L
+                    isStill = false
+
+                    // Интегрируем ускорение
+                    val dt = (currentTime - lastLinearAccelTime) / 1000.0
+
+                    velocityX += x * dt
+                    velocityY += y * dt
+                    velocityZ += z * dt
+                }
+
+                // Всегда обновляем время и рассчитываем приращение
+                if (lastLinearAccelTime != 0L) {
+                    val dt = (currentTime - lastLinearAccelTime) / 1000.0
+                    deltaX = velocityX * dt
+                    deltaY = velocityY * dt
+                    deltaZ = velocityZ * dt
+                }
+
+                lastLinearAccelTime = currentTime
+
+                tvPositionDelta.text = """
+        Приращение координат:
+        ΔX = %.6f m (vX = %.3f m/s)
+        ΔY = %.6f m (vY = %.3f m/s)  
+        ΔZ = %.6f m (vZ = %.3f m/s)
+        Неподвижен: $isStill (${totalAcceleration.format(3)} м/с²)
+    """.trimIndent().format(deltaX, velocityX, deltaY, velocityY, deltaZ, velocityZ)
             }
         }
     }
