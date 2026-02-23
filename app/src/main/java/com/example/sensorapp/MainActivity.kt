@@ -109,6 +109,17 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        usbManager = getSystemService(Context.USB_SERVICE) as UsbManager
+
+        val intentFilter = IntentFilter(ACTION_USB_PERMISSION)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(usbPermissionReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(usbPermissionReceiver, intentFilter)
+        }
+
         setContentView(R.layout.activity_main)
         tvCounter = findViewById(R.id.tvCounter)
         updateCounterDisplay()
@@ -153,6 +164,14 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
         if (outputFile.exists()) {
             outputFile.delete()
         }
+        writeToFile("Starting SensorApp")
+        connectToArduino()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(usbPermissionReceiver)
+        disconnect()
     }
 
     override fun onResume() {
@@ -376,11 +395,12 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
 
     // Callback от SerialInputOutputManager
     override fun onNewData(data: ByteArray) {
-//        just ignore new data...
-//        val message = String(data).trim()
+        val message = String(data).trim()
 //        if (message.isNotEmpty()) {
-//            addMessage("← $message")
-//        }
+        writeToFile("← $message")
+        runOnUiThread {
+            Toast.makeText(this, "Получено: $message", Toast.LENGTH_SHORT).show()
+        }
     }
 
     override fun onRunError(e: Exception) {
