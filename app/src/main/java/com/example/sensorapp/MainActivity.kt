@@ -13,7 +13,6 @@ import android.hardware.SensorManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
-import android.util.Log
 import android.view.KeyEvent
 import android.widget.TextView
 import android.widget.Toast
@@ -83,7 +82,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
                 if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
                     connectToArduino()
                 } else {
-                    Log.e(TAG, "USB permission denied")
+                    writeToFile("USB permission denied")
                 }
             }
         }
@@ -319,7 +318,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
 
         val availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(manager)
         if (availableDrivers.isEmpty()) {
-            Log.e(TAG, "✗ Устройство не найдено")
+            writeToFile("✗ Устройство не найдено")
             return
         }
 
@@ -327,14 +326,14 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
         val device = driver.device
 
         if (!manager.hasPermission(device)) {
-            Log.i(TAG, "⏳ Запрос разрешения...")
+            writeToFile("⏳ Запрос разрешения...")
             manager.requestPermission(device, permissionIntent)
             return
         }
 
         val connection = manager.openDevice(device)
         if (connection == null) {
-            Log.e(TAG, "✗ Ошибка подключения")
+            writeToFile("✗ Ошибка подключения")
             return
         }
 
@@ -346,11 +345,10 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
             usbIoManager = SerialInputOutputManager(port, this)
             usbIoManager?.start()
 
-            Log.i(TAG, "✓ Подключено к ${device.deviceName}")
-            Log.d(TAG, "Успешно подключено")
+            writeToFile("✓ Подключено к ${device.deviceName}")
 
         } catch (e: IOException) {
-            Log.e(TAG, "✗ Ошибка: ${e.message}")
+            writeToFile("✗ Ошибка: ${e.message}")
             disconnect()
         }
     }
@@ -361,9 +359,9 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
             usbIoManager = null
             port?.close()
             port = null
-            Log.i(TAG, "✓ Отключено")
+            writeToFile("✓ Отключено")
         } catch (e: IOException) {
-            Log.e(TAG, "Ошибка закрытия: ${e.message}")
+            writeToFile("Ошибка закрытия: ${e.message}")
         }
     }
 
@@ -371,8 +369,9 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
         try {
             val bytes = data.toByteArray()
             port?.write(bytes, 1000)
+            writeToFile("отправлено: ${data}")
         } catch (e: IOException) {
-            Log.e(TAG, "✗ Ошибка отправки: ${e.message}")
+            writeToFile("✗ Ошибка отправки: ${e.message}")
         }
     }
 
@@ -386,6 +385,6 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
     }
 
     override fun onRunError(e: Exception) {
-        Log.e(TAG, "✗ Соединение разорвано: ${e.message}")
+        writeToFile("✗ Соединение разорвано: ${e.message}")
     }
 }
