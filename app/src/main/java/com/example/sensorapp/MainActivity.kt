@@ -237,8 +237,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
 
                 tvRotation.text = "Rotation-vector:\nX = %.3f\nY = %.3f\nZ = %.3f\n".format(x, y, z)
 
-                val dataLine = "%f %f %f %f".format(x, y, z, counter)
-//                writeToFile(dataLine)
+                val dataLine = "%f %f %f %d".format(x, y, z, counter)
                 sendData(dataLine)
             }
 
