@@ -31,6 +31,7 @@ import java.util.*
 class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, SensorEventListener {
 
     private lateinit var sensorManager: SensorManager
+    private lateinit var sensorHandler: SensorHandler
     private val sensorDelay = 80000000
 
     // Текстовые поля для каждого типа данных
@@ -39,10 +40,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
     private lateinit var tvRotation: TextView
     private lateinit var tvLinearAcceleration: TextView
 
-    private var accelerometer: Sensor? = null
-    private var gyroscope: Sensor? = null
-    private var rotationVector: Sensor? = null
-    private var linearAccelerometer: Sensor? = null
+
 
     private lateinit var outputFile: File
     private var lastWriteTime = 0L
@@ -132,18 +130,8 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
 
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
 
-        // Получаем датчики
-        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-        gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
-        rotationVector = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
-        linearAccelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
-
-        // Проверяем доступность датчиков
-        val missingSensors = mutableListOf<String>()
-        if (accelerometer == null) missingSensors.add("Акселерометр")
-        if (gyroscope == null) missingSensors.add("Гироскоп")
-        if (rotationVector == null) missingSensors.add("Rotation-vector")
-        if (linearAccelerometer == null) missingSensors.add("Линейный акселерометр")
+        val sensorHandler = SensorHandler(sensorManager);
+        val missingSensors : List<String> = sensorHandler.getMissingSensors();
 
         if (missingSensors.isNotEmpty()) {
             val msg = "Датчики не найдены: ${missingSensors.joinToString(", ")}"
@@ -185,24 +173,12 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
         }
         val samplingRate = maxOf(defaultSamplingRate, sensorDelay)
 
-        // Регистрируем датчики
-        accelerometer?.let {
-            sensorManager.registerListener(this, it, samplingRate)
-        }
-        gyroscope?.let {
-            sensorManager.registerListener(this, it, samplingRate)
-        }
-        rotationVector?.let {
-            sensorManager.registerListener(this, it, samplingRate)
-        }
-        linearAccelerometer?.let {
-            sensorManager.registerListener(this, it, samplingRate)
-        }
+        sensorHandler.registerListeners(this, samplingRate)
     }
 
     override fun onPause() {
         super.onPause()
-        sensorManager.unregisterListener(this)
+        sensorHandler.unregisterListeners(this)
     }
 
     override fun onSensorChanged(event: SensorEvent) {
