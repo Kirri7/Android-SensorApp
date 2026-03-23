@@ -17,7 +17,7 @@ class SensorHandler(private val sensorManager: SensorManager) {
         initializeSensors()
     }
 
-    fun initializeSensors() {
+    private fun initializeSensors() {
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
         rotationVector = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
