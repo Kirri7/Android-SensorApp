@@ -130,7 +130,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
 
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
 
-        val sensorHandler = SensorHandler(sensorManager);
+        sensorHandler = SensorHandler(sensorManager);
         val missingSensors : List<String> = sensorHandler.getMissingSensors();
 
         if (missingSensors.isNotEmpty()) {
