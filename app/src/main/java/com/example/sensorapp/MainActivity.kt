@@ -17,21 +17,17 @@ import android.view.KeyEvent
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import com.hoho.android.usbserial.driver.UsbSerialPort
 import com.hoho.android.usbserial.driver.UsbSerialProber
 import com.hoho.android.usbserial.util.SerialInputOutputManager
-import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
-import java.text.SimpleDateFormat
 import java.util.*
 
 class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, SensorEventListener {
 
     private lateinit var sensorManager: SensorManager
     private lateinit var sensorHandler: SensorHandler
+    private lateinit var fileHandler: FileDataHandler
     private val sensorDelay = 80000000
 
     // Текстовые поля для каждого типа данных
@@ -42,13 +38,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
 
 
 
-    private lateinit var outputFile: File
-    private var lastWriteTime = 0L
-    private val writeInterval = 50L // 20 раз в секунду = 50ms интервал
 
-    private val dataBuffer = StringBuilder()
-    private var lastFlushTime = 0L
-    private val flushInterval = 100L // сбрасываем буфер каждые 100мс
 
     private var counter = 0
     private lateinit var tvCounter: TextView
@@ -80,7 +70,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
                 if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
                     connectToArduino()
                 } else {
-                    writeToFile("USB permission denied")
+                    fileHandler.writeToFile("USB permission denied")
                 }
             }
         }
@@ -145,14 +135,8 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
             tvLinearAcceleration.text = "Линейный акселерометр:\nОжидание данных..."
         }
 
-        // Создаем файл для записи данных
-        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        outputFile = File(getExternalFilesDir(null), "sensor_data.txt")
-        // Очищаем файл при старте
-        if (outputFile.exists()) {
-            outputFile.delete()
-        }
-        writeToFile("Starting SensorApp")
+        fileHandler = FileDataHandler(this)
+        fileHandler.writeToFile("Starting SensorApp")
         connectToArduino()
     }
 
@@ -194,7 +178,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
                 if (currentTime - lastWriteTime > writeInterval) {
                     val timestamp = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(Date())
                     val dataLine = "$timestamp,ACC,$x,$y,$z\n"
-                    writeToFile(dataLine)
+                    fileHandler.writeToFile(dataLine)
                     lastWriteTime = currentTime
                 }
                 */
@@ -281,23 +265,6 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
         return super.dispatchKeyEvent(event)
     }
 
-    private fun writeToFile(data: String) {
-        dataBuffer.append(data).append("\n")
-        val currentTime = System.currentTimeMillis()
-
-        // adb shell tail -f /sdcard/Android/data/com.example.sensorapp/files/sensor_data.txt
-        if (currentTime - lastFlushTime > flushInterval) {
-            try {
-                FileOutputStream(outputFile, true).use { fos -> // true = APPEND mode
-                    fos.write(dataBuffer.toString().toByteArray())
-                    dataBuffer.clear()
-                }
-                lastFlushTime = currentTime
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
         // Можно добавить обработку изменения точности при необходимости
@@ -312,7 +279,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
 
         val availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(manager)
         if (availableDrivers.isEmpty()) {
-            writeToFile("✗ Устройство не найдено")
+            fileHandler.writeToFile("✗ Устройство не найдено")
             return
         }
 
@@ -320,14 +287,14 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
         val device = driver.device
 
         if (!manager.hasPermission(device)) {
-            writeToFile("⏳ Запрос разрешения...")
+            fileHandler.writeToFile("⏳ Запрос разрешения...")
             manager.requestPermission(device, permissionIntent)
             return
         }
 
         val connection = manager.openDevice(device)
         if (connection == null) {
-            writeToFile("✗ Ошибка подключения")
+            fileHandler.writeToFile("✗ Ошибка подключения")
             return
         }
 
@@ -339,10 +306,10 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
             usbIoManager = SerialInputOutputManager(port, this)
             usbIoManager?.start()
 
-            writeToFile("✓ Подключено к ${device.deviceName}")
+            fileHandler.writeToFile("✓ Подключено к ${device.deviceName}")
 
         } catch (e: IOException) {
-            writeToFile("✗ Ошибка: ${e.message}")
+            fileHandler.writeToFile("✗ Ошибка: ${e.message}")
             disconnect()
         }
     }
@@ -353,9 +320,9 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
             usbIoManager = null
             port?.close()
             port = null
-            writeToFile("✓ Отключено")
+            fileHandler.writeToFile("✓ Отключено")
         } catch (e: IOException) {
-            writeToFile("Ошибка закрытия: ${e.message}")
+            fileHandler.writeToFile("Ошибка закрытия: ${e.message}")
         }
     }
 
@@ -363,9 +330,9 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
         try {
             val bytes = data.toByteArray()
             port?.write(bytes, 1000)
-            writeToFile("отправлено: ${data}")
+            fileHandler.writeToFile("отправлено: ${data}")
         } catch (e: IOException) {
-            writeToFile("✗ Ошибка отправки: ${e.message}")
+            fileHandler.writeToFile("✗ Ошибка отправки: ${e.message}")
         }
     }
 
@@ -373,13 +340,13 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
     override fun onNewData(data: ByteArray) {
         val message = String(data).trim()
 //        if (message.isNotEmpty()) {
-        writeToFile("← $message")
+        fileHandler.writeToFile("← $message")
         runOnUiThread {
             Toast.makeText(this, "Получено: $message", Toast.LENGTH_SHORT).show()
         }
     }
 
     override fun onRunError(e: Exception) {
-        writeToFile("✗ Соединение разорвано: ${e.message}")
+        fileHandler.writeToFile("✗ Соединение разорвано: ${e.message}")
     }
 }
