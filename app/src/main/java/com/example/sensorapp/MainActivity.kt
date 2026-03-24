@@ -18,6 +18,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private lateinit var sensorHandler: SensorHandler
     private lateinit var fileHandler: FileDataHandler
     private lateinit var usbHandler: UsbConnectionHandler
+    private lateinit var espClient: Esp32TcpClient
     private val sensorDelay = 80000000
 
     // Текстовые поля для каждого типа данных
@@ -61,7 +62,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-
         setContentView(R.layout.activity_main)
         tvCounter = findViewById(R.id.tvCounter)
         updateCounterDisplay()
@@ -91,11 +91,33 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
         fileHandler = FileDataHandler(this)
         fileHandler.writeToFile("Starting SensorApp")
+
         usbHandler = UsbConnectionHandler(this, fileHandler)
         usbHandler.connectToArduino()
+
+        espClient = Esp32TcpClient()
+        // TODO proper .env file
+        espClient.connect("x.x.x.x", 10000, object : Esp32TcpClient.ConnectionCallback {
+            override fun onConnected() {
+                fileHandler.writeToFile("ESP32: " + "Connected successfully")
+                // Можно начать периодическую отправку
+                espClient.startPeriodicSend(3000, 3.14f)
+            }
+            override fun onDisconnected() {
+                fileHandler.writeToFile("ESP32: " + "Disconnected")
+            }
+            override fun onError(message: String) {
+                fileHandler.writeToFile("ESP32: " + message)
+            }
+        })
+        // Отправка одного значения
+        // espClient.sendFloat(10.5f)
+        // Отправка массива значений
+        // espClient.sendFloatArray(floatArrayOf(1.0f, 2.0f, 3.0f))
     }
 
     override fun onDestroy() {
+        espClient.disconnect()
         super.onDestroy()
         usbHandler.disconnectFromArduino()
     }
