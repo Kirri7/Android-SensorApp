@@ -12,6 +12,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import java.util.concurrent.Executors
+import kotlin.math.abs
 
 class MainActivity : AppCompatActivity(), SensorEventListener {
 
@@ -39,7 +40,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
 
     private var isLightOn = false
-    private val tiltThreshold = 30.0 // градусы
+    private val tiltThreshold = 45.0 // рабочая зона от -0 до -89.99 до -0
+    private var gSign: Boolean = true
 
     private var lastWriteTime = 0L
     private val writeInterval = 250
@@ -142,16 +144,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                 val x = event.values[0]
                 val y = event.values[1]
                 val z = event.values[2]
+                gSign = z > 0
                 tvAccelerometer.text = "Акселерометр:\nX = %.3f m/s²\nY = %.3f m/s²\nZ = %.3f m/s²".format(x, y, z)
-                /*
-                val currentTime = System.currentTimeMillis()
-                if (currentTime - lastWriteTime > writeInterval) {
-                    val timestamp = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(Date())
-                    val dataLine = "$timestamp,ACC,$x,$y,$z\n"
-                    fileHandler.writeToFile(dataLine)
-                    lastWriteTime = currentTime
-                }
-                */
             }
 
             Sensor.TYPE_GYROSCOPE -> {
@@ -191,10 +185,17 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                     val dataLine = "%f %f %f %d".format(x, y, z, counter).replace(',', '.')
                     usbHandler.sendData(dataLine)
 
+                    var turnLeft = false
+                    var turnRight = false
+                    if (y < 0) {
+                        if (abs(y) < tiltThreshold && gSign) { turnLeft = true }
+                        else if (abs(y) < tiltThreshold && !gSign) { turnRight = true }
+                    }
+
                     // fun Boolean.toFloat(): Float = if (this) 1.0f else 0.0f
                     // espClient.sendBooleanArray(booleanArrayOf(false, false, volumeUpPressed, volumeDownPressed))
                     synchronized(queueLock) {
-                        sensorDataQueue.add(booleanArrayOf(true, true, volumeUpPressed, volumeDownPressed))
+                        sensorDataQueue.add(booleanArrayOf(turnLeft, turnRight, volumeUpPressed, volumeDownPressed))
                     }
                     lastWriteTime = currentTime
                 }
