@@ -20,10 +20,9 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private lateinit var fileHandler: FileDataHandler
     private lateinit var usbHandler: UsbConnectionHandler
     private lateinit var espClient: Esp32TcpClient
-    private var sensorDataQueue: MutableList<Float> = mutableListOf() // Очередь для данных
+    private var sensorDataQueue: MutableList<BooleanArray> = mutableListOf() // Очередь для данных
     private val queueLock = Any() // Lock для безопасного доступа к очереди
 
-    private val sensorDelay = 80000000
 
     // Текстовые поля для каждого типа данных
     private lateinit var tvAccelerometer: TextView
@@ -41,6 +40,9 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
     private var isLightOn = false
     private val tiltThreshold = 30.0 // градусы
+
+    private var lastWriteTime = 0L
+    private val writeInterval = 250
 
 
 
@@ -125,16 +127,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
     override fun onResume() {
         super.onResume()
-
-        // Используем безопасную частоту обновления
-        val defaultSamplingRate = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            SensorManager.SENSOR_DELAY_NORMAL  // Безопасная частота
-        } else {
-            SensorManager.SENSOR_DELAY_FASTEST  // Для старых версий Android
-        }
-        val samplingRate = maxOf(defaultSamplingRate, sensorDelay)
-
-        sensorHandler.registerListeners(this, samplingRate)
+        sensorHandler.registerListeners(this)
     }
 
     override fun onPause() {
@@ -191,15 +184,19 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                 val y = Math.toDegrees(pitch.toDouble()).toFloat()
                 val z = Math.toDegrees(roll.toDouble()).toFloat()
 
-                tvRotation.text = "Rotation-vector:\nX = %.3f\nY = %.3f\nZ = %.3f\n".format(x, y, z)
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastWriteTime > writeInterval) {
+                    tvRotation.text = "Rotation-vector:\nX = %.3f\nY = %.3f\nZ = %.3f\n".format(x, y, z)
 
-                val dataLine = "%f %f %f %d".format(x, y, z, counter).replace(',', '.')
-                usbHandler.sendData(dataLine)
+                    val dataLine = "%f %f %f %d".format(x, y, z, counter).replace(',', '.')
+                    usbHandler.sendData(dataLine)
 
-                // fun Boolean.toFloat(): Float = if (this) 1.0f else 0.0f
-                // espClient.sendBooleanArray(booleanArrayOf(false, false, volumeUpPressed, volumeDownPressed))
-                synchronized(queueLock) {
-                    sensorDataQueue.add(booleanArrayOf(true, true, volumeUpPressed, volumeDownPressed))
+                    // fun Boolean.toFloat(): Float = if (this) 1.0f else 0.0f
+                    // espClient.sendBooleanArray(booleanArrayOf(false, false, volumeUpPressed, volumeDownPressed))
+                    synchronized(queueLock) {
+                        sensorDataQueue.add(booleanArrayOf(true, true, volumeUpPressed, volumeDownPressed))
+                    }
+                    lastWriteTime = currentTime
                 }
             }
 
@@ -272,11 +269,13 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                         }
                     }
                 }
+                /*
                 try {
                     Thread.sleep(250) // Adjust the sleep time as needed // 200 too small
                 } catch (e: InterruptedException) {
                     break
                 }
+                 */
             }
         }
     }

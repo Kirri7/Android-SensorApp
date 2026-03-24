@@ -33,11 +33,11 @@ class SensorHandler(private val sensorManager: SensorManager) {
         return missingSensors
     }
 
-    fun registerListeners(listener: SensorEventListener, samplingRate: Int) {
-        accelerometer?.let { sensorManager.registerListener(listener, it, samplingRate) }
-        gyroscope?.let { sensorManager.registerListener(listener, it, samplingRate) }
-        rotationVector?.let { sensorManager.registerListener(listener, it, samplingRate) }
-        linearAccelerometer?.let { sensorManager.registerListener(listener, it, samplingRate) }
+    fun registerListeners(listener: SensorEventListener) {
+        accelerometer?.let { sensorManager.registerListener(listener, it, SensorManager.SENSOR_DELAY_NORMAL) }
+        gyroscope?.let { sensorManager.registerListener(listener, it, SensorManager.SENSOR_DELAY_NORMAL) }
+        rotationVector?.let { sensorManager.registerListener(listener, it, SensorManager.SENSOR_DELAY_NORMAL) }
+        linearAccelerometer?.let { sensorManager.registerListener(listener, it, SensorManager.SENSOR_DELAY_NORMAL) }
     }
 
     fun unregisterListeners(listener: SensorEventListener) {
