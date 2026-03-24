@@ -11,6 +11,7 @@ import android.view.KeyEvent
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity(), SensorEventListener {
 
@@ -19,6 +20,9 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private lateinit var fileHandler: FileDataHandler
     private lateinit var usbHandler: UsbConnectionHandler
     private lateinit var espClient: Esp32TcpClient
+    private var sensorDataQueue: MutableList<Float> = mutableListOf() // Очередь для данных
+    private val queueLock = Any() // Lock для безопасного доступа к очереди
+
     private val sensorDelay = 80000000
 
     // Текстовые поля для каждого типа данных
@@ -101,7 +105,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             override fun onConnected() {
                 fileHandler.writeToFile("ESP32: " + "Connected successfully")
                 // Можно начать периодическую отправку
-                espClient.startPeriodicSend(3000, 3.14f)
+                // espClient.startPeriodicSend(3000, 3.14f)
+                startSendingFromQueue()
             }
             override fun onDisconnected() {
                 fileHandler.writeToFile("ESP32: " + "Disconnected")
@@ -110,10 +115,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                 fileHandler.writeToFile("ESP32: " + message)
             }
         })
-        // Отправка одного значения
-        // espClient.sendFloat(10.5f)
-        // Отправка массива значений
-        // espClient.sendFloatArray(floatArrayOf(1.0f, 2.0f, 3.0f))
     }
 
     override fun onDestroy() {
@@ -192,8 +193,31 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
                 tvRotation.text = "Rotation-vector:\nX = %.3f\nY = %.3f\nZ = %.3f\n".format(x, y, z)
 
+//                espClient.sendFloat(123.5f)
                 val dataLine = "%f %f %f %d".format(x, y, z, counter).replace(',', '.')
                 usbHandler.sendData(dataLine)
+
+                // fun Boolean.toFloat(): Float = if (this) 1.0f else 0.0f
+                // Отправка одного значения
+//                CoroutineScope(Dispatchers.IO).launch {
+//                    espClient.sendFloat(x.toFloat())
+//                    delay(1000) // Пауза в 1 секунду между отправками
+//                }
+//                espClient.sendFloat(10.5f)
+//                espClient.sendFloat(12.5f)
+//                espClient.sendFloat(13.5f)
+//                espClient.sendFloat(14.5f)
+//                espClient.sendFloat(15.5f)
+                // Отправка массива значений
+                // espClient.sendBooleanArray(booleanArrayOf(false, false, volumeUpPressed, volumeDownPressed))
+//                espClient.startPeriodicSend(6000, 300.14f)
+//                espClient.sendFloat(16.5f)
+//                espClient.sendFloat(17.5f)
+                synchronized(queueLock) {
+                    sensorDataQueue.add(x)
+                    sensorDataQueue.add(y)
+                    sensorDataQueue.add(z)
+                }
             }
 
             Sensor.TYPE_LINEAR_ACCELERATION -> {
@@ -250,4 +274,27 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         tvCounter.text = "Счётчик: $counter"
     }
 
+    private fun startSendingFromQueue() {
+        executor.submit {
+            while (espClient.isConnected()) {  // Assuming isConnected() is available in your Esp32TcpClient
+                synchronized(queueLock) {
+                    if (sensorDataQueue.isNotEmpty()) {
+                        val value = sensorDataQueue.removeAt(0) // Get the first element
+                        if (espClient.sendFloat(value)) {
+                            fileHandler.writeToFile("SensorData -> " + "Sent: $value") // Добавили лог
+                        } else {
+                            // Обработка ошибок отправки
+                            fileHandler.writeToFile("SensorData -> " + "Failed to send: $value")
+                        }
+                    }
+                }
+                try {
+                    Thread.sleep(1000) // Adjust the sleep time as needed
+                } catch (e: InterruptedException) {
+                    break
+                }
+            }
+        }
+    }
+    private val executor = Executors.newSingleThreadExecutor()
 }
