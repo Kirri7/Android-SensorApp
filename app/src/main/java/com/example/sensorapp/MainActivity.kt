@@ -91,6 +91,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
         fileHandler = FileDataHandler(this)
         fileHandler.writeToFile("Starting SensorApp")
+        usbHandler = UsbConnectionHandler(this, fileHandler)
         usbHandler.connectToArduino()
     }
 
