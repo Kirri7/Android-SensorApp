@@ -52,6 +52,14 @@ class Esp32TcpClient {
         return sendBytes(bytes.array())
     }
 
+    fun sendBooleanArray(values: BooleanArray): Boolean {
+        val bytes = ByteBuffer.allocate(values.size).order(ByteOrder.LITTLE_ENDIAN) // TODO 1 byte per boolean?
+        for (value in values) {
+            bytes.put(if (value) 1 else 0)
+        }
+        return sendBytes(bytes.array())
+    }
+
     private fun sendBytes(bytes: ByteArray): Boolean {
         if (outputStream == null) return false
 
