@@ -1,11 +1,5 @@
 package com.example.sensorapp
 
-import android.app.PendingIntent
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.hardware.usb.UsbManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -17,17 +11,13 @@ import android.view.KeyEvent
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.hoho.android.usbserial.driver.UsbSerialPort
-import com.hoho.android.usbserial.driver.UsbSerialProber
-import com.hoho.android.usbserial.util.SerialInputOutputManager
-import java.io.IOException
-import java.util.*
 
-class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, SensorEventListener {
+class MainActivity : AppCompatActivity(), SensorEventListener {
 
     private lateinit var sensorManager: SensorManager
     private lateinit var sensorHandler: SensorHandler
     private lateinit var fileHandler: FileDataHandler
+    private lateinit var usbHandler: UsbConnectionHandler
     private val sensorDelay = 80000000
 
     // Текстовые поля для каждого типа данных
@@ -37,44 +27,17 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
     private lateinit var tvLinearAcceleration: TextView
 
 
-
-
-
     private var counter = 0
     private lateinit var tvCounter: TextView
     private val handler = Handler()
     private var volumeUpPressed = false
     private var volumeDownPressed = false
 
-    private val ACTION_USB_PERMISSION = "com.example.sensorapp.USB_PERMISSION"
-    private val TAG = "ArduinoUSB"
-
-    private var usbManager: UsbManager? = null
-    private var port: UsbSerialPort? = null
-    private var usbIoManager: SerialInputOutputManager? = null
 
     private var isLightOn = false
     private val tiltThreshold = 30.0 // градусы
 
-    private val permissionIntent by lazy {
-        PendingIntent.getBroadcast(
-            this,
-            0,
-            Intent(ACTION_USB_PERMISSION),
-            PendingIntent.FLAG_IMMUTABLE
-        )
-    }
-    private val usbPermissionReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            if (ACTION_USB_PERMISSION == intent.action) {
-                if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                    connectToArduino()
-                } else {
-                    fileHandler.writeToFile("USB permission denied")
-                }
-            }
-        }
-    }
+
 
     private val volumeRunnable = object : Runnable {
         override fun run() {
@@ -98,15 +61,6 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        usbManager = getSystemService(Context.USB_SERVICE) as UsbManager
-
-        val intentFilter = IntentFilter(ACTION_USB_PERMISSION)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(usbPermissionReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            @Suppress("UnspecifiedRegisterReceiverFlag")
-            registerReceiver(usbPermissionReceiver, intentFilter)
-        }
 
         setContentView(R.layout.activity_main)
         tvCounter = findViewById(R.id.tvCounter)
@@ -137,13 +91,12 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
 
         fileHandler = FileDataHandler(this)
         fileHandler.writeToFile("Starting SensorApp")
-        connectToArduino()
+        usbHandler.connectToArduino()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        unregisterReceiver(usbPermissionReceiver)
-        disconnect()
+        usbHandler.disconnectFromArduino()
     }
 
     override fun onResume() {
@@ -217,7 +170,7 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
                 tvRotation.text = "Rotation-vector:\nX = %.3f\nY = %.3f\nZ = %.3f\n".format(x, y, z)
 
                 val dataLine = "%f %f %f %d".format(x, y, z, counter).replace(',', '.')
-                sendData(dataLine)
+                usbHandler.sendData(dataLine)
             }
 
             Sensor.TYPE_LINEAR_ACCELERATION -> {
@@ -274,79 +227,4 @@ class MainActivity : AppCompatActivity(), SerialInputOutputManager.Listener, Sen
         tvCounter.text = "Счётчик: $counter"
     }
 
-    private fun connectToArduino() {
-        val manager = usbManager ?: return
-
-        val availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(manager)
-        if (availableDrivers.isEmpty()) {
-            fileHandler.writeToFile("✗ Устройство не найдено")
-            return
-        }
-
-        val driver = availableDrivers[0]
-        val device = driver.device
-
-        if (!manager.hasPermission(device)) {
-            fileHandler.writeToFile("⏳ Запрос разрешения...")
-            manager.requestPermission(device, permissionIntent)
-            return
-        }
-
-        val connection = manager.openDevice(device)
-        if (connection == null) {
-            fileHandler.writeToFile("✗ Ошибка подключения")
-            return
-        }
-
-        port = driver.ports[0]
-        try {
-            port?.open(connection)
-            port?.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE)
-
-            usbIoManager = SerialInputOutputManager(port, this)
-            usbIoManager?.start()
-
-            fileHandler.writeToFile("✓ Подключено к ${device.deviceName}")
-
-        } catch (e: IOException) {
-            fileHandler.writeToFile("✗ Ошибка: ${e.message}")
-            disconnect()
-        }
-    }
-
-    private fun disconnect() {
-        try {
-            usbIoManager?.stop()
-            usbIoManager = null
-            port?.close()
-            port = null
-            fileHandler.writeToFile("✓ Отключено")
-        } catch (e: IOException) {
-            fileHandler.writeToFile("Ошибка закрытия: ${e.message}")
-        }
-    }
-
-    private fun sendData(data: String) {
-        try {
-            val bytes = data.toByteArray()
-            port?.write(bytes, 1000)
-            fileHandler.writeToFile("отправлено: ${data}")
-        } catch (e: IOException) {
-            fileHandler.writeToFile("✗ Ошибка отправки: ${e.message}")
-        }
-    }
-
-    // Callback от SerialInputOutputManager
-    override fun onNewData(data: ByteArray) {
-        val message = String(data).trim()
-//        if (message.isNotEmpty()) {
-        fileHandler.writeToFile("← $message")
-        runOnUiThread {
-            Toast.makeText(this, "Получено: $message", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    override fun onRunError(e: Exception) {
-        fileHandler.writeToFile("✗ Соединение разорвано: ${e.message}")
-    }
 }
