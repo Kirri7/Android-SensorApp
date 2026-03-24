@@ -289,7 +289,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                     }
                 }
                 try {
-                    Thread.sleep(1000) // Adjust the sleep time as needed
+                    Thread.sleep(250) // Adjust the sleep time as needed // 200 too small
                 } catch (e: InterruptedException) {
                     break
                 }
