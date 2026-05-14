@@ -249,6 +249,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
         // Можно добавить обработку изменения точности при необходимости
+        // TODO
     }
 
     private fun updateCounterDisplay() {
