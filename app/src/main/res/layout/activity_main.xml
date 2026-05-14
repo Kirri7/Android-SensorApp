@@ -65,6 +65,7 @@
             android:id="@+id/tvRotation"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
             android:background="@drawable/sensor_background"
             android:padding="16dp"
             android:text="Rotation-vector:\nОжидание данных..."
