@@ -77,11 +77,31 @@
             android:id="@+id/tvCounter"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
             android:background="@drawable/sensor_background"
             android:padding="16dp"
             android:text="Счётчик: 0"
             android:textSize="16sp"
             android:textColor="#333333" />
 
+        <!-- Поле ввода IP -->
+        <EditText
+            android:id="@+id/etIpAddress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/sensor_background"
+            android:padding="16dp"
+            android:hint="Введите IP адрес платы ESP32..."
+            android:inputType="text"
+            android:singleLine="true"
+            android:textColor="#333333" />
+
+        <Button
+            android:id="@+id/btnSave"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Сохранить и подключиться"
+            android:padding="12dp" />
     </LinearLayout>
 </ScrollView>

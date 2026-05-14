@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.view.KeyEvent
+import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -46,7 +47,9 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private var lastWriteTime = 0L
     private val writeInterval = 250
 
-
+    private lateinit var settingsManager: SettingsManager
+    private lateinit var etIpAddress: android.widget.EditText
+    private lateinit var btnSave: Button
 
     private val volumeRunnable = object : Runnable {
         override fun run() {
@@ -100,25 +103,43 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         fileHandler = FileDataHandler(this)
         fileHandler.writeToFile("Starting SensorApp")
 
+        settingsManager = SettingsManager(this)
+        etIpAddress = findViewById(R.id.etIpAddress)
+        etIpAddress.setText(settingsManager.ipAddress)
+
         usbHandler = UsbConnectionHandler(this, fileHandler)
         usbHandler.connectToArduino()
 
         espClient = Esp32TcpClient()
-        // TODO proper .env file
-        espClient.connect("x.x.x.x", 10000, object : Esp32TcpClient.ConnectionCallback {
-            override fun onConnected() {
-                fileHandler.writeToFile("ESP32: " + "Connected successfully")
-                // Можно начать периодическую отправку
-                // espClient.startPeriodicSend(3000, 3.14f)
-                startSendingFromQueue()
+
+        btnSave = findViewById(R.id.btnSave)
+        btnSave.setOnClickListener {
+            val enteredIp = etIpAddress.text.toString().trim()
+            if (enteredIp.isNotEmpty()) {
+                settingsManager.ipAddress = enteredIp
+                Toast.makeText(this, "IP $enteredIp сохранен!", Toast.LENGTH_SHORT).show()
+                espClient.connect(
+                    settingsManager.ipAddress,
+                    settingsManager.port,
+                    object : Esp32TcpClient.ConnectionCallback {
+                        override fun onConnected() {
+                            fileHandler.writeToFile("ESP32: " + "Connected successfully")
+                            // Можно начать периодическую отправку
+                            // espClient.startPeriodicSend(3000, 3.14f)
+                            startSendingFromQueue()
+                        }
+                        override fun onDisconnected() {
+                            fileHandler.writeToFile("ESP32: " + "Disconnected")
+                        }
+                        override fun onError(message: String) {
+                            fileHandler.writeToFile("ESP32: " + message)
+                        }
+                    })
+            } else {
+                etIpAddress.error = "Введите IP адрес"
+                Toast.makeText(this, "Ошибка: IP не может быть пустым", Toast.LENGTH_SHORT).show()
             }
-            override fun onDisconnected() {
-                fileHandler.writeToFile("ESP32: " + "Disconnected")
-            }
-            override fun onError(message: String) {
-                fileHandler.writeToFile("ESP32: " + message)
-            }
-        })
+        }
     }
 
     override fun onDestroy() {
