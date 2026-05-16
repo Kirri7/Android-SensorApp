@@ -85,8 +85,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
 
-        sensorHandler = SensorHandler(sensorManager); // TODO do I need ';'?
-        val missingSensors: List<String> = sensorHandler.getMissingSensors();
+        sensorHandler = SensorHandler(sensorManager)
+        val missingSensors: List<String> = sensorHandler.getMissingSensors()
 
         if (missingSensors.isNotEmpty()) {
             val msg = "Датчики не найдены: ${missingSensors.joinToString(", ")}"
