@@ -59,6 +59,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                     updateCounterDisplay()
                     handler.postDelayed(this, 150)
                 }
+
                 volumeDownPressed && counter > -100 -> {
                     counter--
                     updateCounterDisplay()
@@ -67,7 +68,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             }
         }
     }
-
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -86,7 +86,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
 
         sensorHandler = SensorHandler(sensorManager); // TODO do I need ';'?
-        val missingSensors : List<String> = sensorHandler.getMissingSensors();
+        val missingSensors: List<String> = sensorHandler.getMissingSensors();
 
         if (missingSensors.isNotEmpty()) {
             val msg = "Датчики не найдены: ${missingSensors.joinToString(", ")}"
@@ -128,9 +128,11 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                             // espClient.startPeriodicSend(3000, 3.14f)
                             startSendingFromQueue()
                         }
+
                         override fun onDisconnected() {
                             fileHandler.writeToFile("ESP32: " + "Disconnected")
                         }
+
                         override fun onError(message: String) {
                             fileHandler.writeToFile("ESP32: " + message)
                         }
@@ -209,8 +211,11 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                     var turnLeft = false
                     var turnRight = false
                     if (y < 0) {
-                        if (abs(y) < tiltThreshold && gSign) { turnLeft = true }
-                        else if (abs(y) < tiltThreshold && !gSign) { turnRight = true }
+                        if (abs(y) < tiltThreshold && gSign) {
+                            turnLeft = true
+                        } else if (abs(y) < tiltThreshold && !gSign) {
+                            turnRight = true
+                        }
                     }
 
                     // fun Boolean.toFloat(): Float = if (this) 1.0f else 0.0f
@@ -226,7 +231,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                 val x = event.values[0]
                 val y = event.values[1]
                 val z = event.values[2]
-                tvLinearAcceleration.text = "Линейный акселерометр:\nX = %.3f m/s²\nY = %.3f m/s²\nZ = %.3f m/s²".format(x, y, z)
+                tvLinearAcceleration.text =
+                    "Линейный акселерометр:\nX = %.3f m/s²\nY = %.3f m/s²\nZ = %.3f m/s²".format(x, y, z)
             }
         }
     }
@@ -241,6 +247,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                             handler.post(volumeRunnable)
                         }
                     }
+
                     KeyEvent.ACTION_UP -> {
                         volumeUpPressed = false
                         handler.removeCallbacks(volumeRunnable)
@@ -248,6 +255,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                 }
                 return true // Блокируем стандартное поведение
             }
+
             KeyEvent.KEYCODE_VOLUME_DOWN -> {
                 when (event.action) {
                     KeyEvent.ACTION_DOWN -> {
@@ -256,6 +264,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                             handler.post(volumeRunnable)
                         }
                     }
+
                     KeyEvent.ACTION_UP -> {
                         volumeDownPressed = false
                         handler.removeCallbacks(volumeRunnable)
@@ -302,5 +311,6 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             }
         }
     }
+
     private val executor = Executors.newSingleThreadExecutor()
 }
