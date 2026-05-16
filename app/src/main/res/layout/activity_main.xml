@@ -104,13 +104,15 @@
             android:hint="Введите IP адрес платы ESP32..."
             android:inputType="text"
             android:singleLine="true"
-            android:textColor="#333333" />
+            android:textColor="#333333"
+        />
 
         <Button
             android:id="@+id/btnSave"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Сохранить и подключиться"
-            android:padding="12dp" />
+            android:padding="12dp"
+        />
     </LinearLayout>
 </ScrollView>
